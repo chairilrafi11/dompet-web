@@ -106,8 +106,10 @@ export default function DateRangePicker({
               locale={id}
               selected={selected}
               onSelect={(r) => {
-                onChange(r?.from, r?.to)
-                if (r?.from && r?.to) setOpen(false)
+                if (r?.from && r?.to) {
+                  onChange(r.from, r.to)
+                  setOpen(false)
+                }
               }}
               numberOfMonths={1}
             />
