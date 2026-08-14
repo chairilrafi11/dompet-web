@@ -104,6 +104,7 @@ export default function DateRangePicker({
             <DayPicker
               mode="range"
               locale={id}
+              min={2}
               selected={selected}
               onSelect={(r) => {
                 if (r?.from && r?.to) {
