@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { DayPicker, type DateRange } from 'react-day-picker'
 import 'react-day-picker/style.css'
 import { CalendarBlank, CaretDown, X } from '@phosphor-icons/react'
@@ -17,12 +18,19 @@ export default function DateRangePicker({
   onClear: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (
+        !triggerRef.current?.contains(t) &&
+        !popRef.current?.contains(t)
+      )
+        setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
@@ -35,6 +43,17 @@ export default function DateRangePicker({
     }
   }, [open])
 
+  const toggle = () => {
+    setOpen((o) => {
+      const next = !o
+      if (next && triggerRef.current) {
+        const r = triggerRef.current.getBoundingClientRect()
+        setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+      }
+      return next
+    })
+  }
+
   const label = from && to
     ? `${format(from, 'dd MMM yyyy', { locale: id })} — ${format(to, 'dd MMM yyyy', { locale: id })}`
     : from
@@ -45,10 +64,11 @@ export default function DateRangePicker({
   const active = Boolean(from || to)
 
   return (
-    <div ref={ref} className="date-range-picker relative">
+    <div className="date-range-picker relative">
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-haspopup="dialog"
         aria-expanded={open}
         className={`flex items-center gap-2 rounded-xl border bg-white/5 px-3 py-2 text-left text-sm transition-colors hover:border-line-strong focus:border-brand focus:outline-none ${
@@ -74,20 +94,26 @@ export default function DateRangePicker({
           <X size={14} />
         </button>
       )}
-      {open && (
-        <div className="absolute right-0 z-20 mt-1 rounded-xl border border-line-strong bg-ink-900 p-2 shadow-card">
-          <DayPicker
-            mode="range"
-            locale={id}
-            selected={selected}
-            onSelect={(r) => {
-              onChange(r?.from, r?.to)
-              if (r?.from && r?.to) setOpen(false)
-            }}
-            numberOfMonths={1}
-          />
-        </div>
-      )}
+      {open &&
+        createPortal(
+          <div
+            ref={popRef}
+            className="date-range-picker fixed z-50 rounded-xl border border-line-strong bg-ink-900 p-2 shadow-card"
+            style={{ top: pos.top, right: pos.right }}
+          >
+            <DayPicker
+              mode="range"
+              locale={id}
+              selected={selected}
+              onSelect={(r) => {
+                onChange(r?.from, r?.to)
+                if (r?.from && r?.to) setOpen(false)
+              }}
+              numberOfMonths={1}
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }
