@@ -24,6 +24,8 @@ const inputClass =
 
 type TypeFilter = '' | '0' | '1'
 
+const PAGE_SIZE = 20
+
 export default function TransactionsPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -48,7 +50,7 @@ export default function TransactionsPage() {
             : {}),
         },
         page,
-        20,
+        PAGE_SIZE,
       ),
   })
 
@@ -199,6 +201,7 @@ export default function TransactionsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-fg-muted">
+                  <th className="px-4 py-3 font-medium">No</th>
                   <th className="px-4 py-3 font-medium">Kategori</th>
                   <th className="hidden px-4 py-3 font-medium md:table-cell">Dompet</th>
                   <th className="hidden px-4 py-3 font-medium lg:table-cell">Catatan</th>
@@ -208,11 +211,14 @@ export default function TransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((t) => (
+                {filtered.map((t, i) => (
                   <tr
                     key={t.id}
                     className="border-b border-line/60 transition-colors last:border-b-0 hover:bg-white/[0.03]"
                   >
+                    <td className="px-4 py-3 text-sm tabular-nums text-fg-muted">
+                      {(page - 1) * PAGE_SIZE + i + 1}
+                    </td>
                     <td className="px-4 py-3 font-medium text-fg-primary">{t.categoryName}</td>
                     <td className="hidden px-4 py-3 text-fg-secondary md:table-cell">{t.walletName}</td>
                     <td className="hidden px-4 py-3 text-fg-secondary lg:table-cell">

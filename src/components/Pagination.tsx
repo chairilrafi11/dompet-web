@@ -27,7 +27,7 @@ export default function Pagination({
   if (totalPages <= 1) return null
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line p-4">
+    <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line p-4">
       <button
         type="button"
         onClick={() => onChange(page - 1)}
