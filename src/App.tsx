@@ -8,6 +8,7 @@ import WalletsPage from './pages/WalletsPage'
 import CategoriesPage from './pages/CategoriesPage'
 import TransactionsPage from './pages/TransactionsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 export default function App() {
   return (
@@ -64,6 +65,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

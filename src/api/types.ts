@@ -9,6 +9,7 @@ export interface Wallet {
   name: string
   initialBalance: number
   balance: number
+  monthlyTarget?: number
 }
 
 export type CategoryType = 0 | 1

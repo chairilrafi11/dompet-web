@@ -1,20 +1,46 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Funnel, MagnifyingGlass, Plus } from '@phosphor-icons/react'
 import { createTransaction, deleteTransaction, getTransactions } from '../api/transactions'
 import { getWallets } from '../api/wallets'
 import { getCategories } from '../api/categories'
+import type { CategoryType } from '../api/types'
 import { formatRupiah } from '../lib/format'
+import ConfirmButton from '../components/ConfirmButton'
+import EmptyState from '../components/EmptyState'
+import ErrorBanner from '../components/ErrorBanner'
+import PageHeader from '../components/PageHeader'
+import RupiahInput from '../components/RupiahInput'
+import Select from '../components/Select'
+import SlideOver from '../components/SlideOver'
+import SpotlightCard from '../components/SpotlightCard'
+import TableSkeleton from '../components/TableSkeleton'
+import { useToast } from '../components/toast-context'
+
+const inputClass =
+  'w-full rounded-xl border border-line bg-white/5 px-3 py-2 text-fg-primary placeholder:text-fg-muted focus:border-brand focus:outline-none'
+
+type TypeFilter = '' | '0' | '1'
 
 export default function TransactionsPage() {
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const { data: wallets = [] } = useQuery({ queryKey: ['wallets'], queryFn: getWallets })
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: () => getCategories() })
-  const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: () => getTransactions() })
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('')
+  const [search, setSearch] = useState('')
+  const transactionsQ = useQuery({
+    queryKey: ['transactions', typeFilter],
+    queryFn: () =>
+      getTransactions(typeFilter === '' ? {} : { type: Number(typeFilter) as CategoryType }),
+  })
 
+  const [open, setOpen] = useState(false)
   const [walletId, setWalletId] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
+  const [error, setError] = useState('')
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['transactions'] })
@@ -36,104 +62,210 @@ export default function TransactionsPage() {
     onSuccess: () => {
       setAmount('')
       setNote('')
+      setOpen(false)
+      toast('Transaksi dicatat')
       invalidate()
     },
+    onError: () => setError('Gagal menyimpan transaksi. Coba lagi.'),
   })
 
   const remove = useMutation({
     mutationFn: (id: number) => deleteTransaction(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      toast('Transaksi dihapus')
+      invalidate()
+    },
   })
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
+    setError('')
     create.mutate()
   }
 
+  const all = transactionsQ.data ?? []
+  const q = search.trim().toLowerCase()
+  const filtered = q
+    ? all.filter((t) =>
+        [t.categoryName, t.walletName, t.note ?? ''].some((s) => s.toLowerCase().includes(q)),
+      )
+    : all
+
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold">Transaksi</h2>
-
-      <form onSubmit={onSubmit} className="bg-white p-4 rounded shadow flex flex-wrap gap-3 items-end">
-        <div>
-          <label className="text-sm text-slate-600">Dompet</label>
-          <select
-            className="w-full border rounded px-3 py-2"
-            value={walletId}
-            onChange={(e) => setWalletId(e.target.value)}
-            required
+      <PageHeader
+        title="Transaksi"
+        subtitle={all.length > 0 ? `${all.length} catatan` : 'Catat dan kelola transaksi'}
+        action={
+          <button
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-ink-950 transition-colors hover:bg-brand-bright active:scale-[0.98]"
           >
-            <option value="">Pilih...</option>
-            {wallets.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-sm text-slate-600">Kategori</label>
-          <select
-            className="w-full border rounded px-3 py-2"
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            required
-          >
-            <option value="">Pilih...</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.type === 0 ? 'In' : 'Out'})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-sm text-slate-600">Jumlah</label>
-          <input
-            className="w-full border rounded px-3 py-2"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
-        </div>
-        <div className="flex-1 min-w-40">
-          <label className="text-sm text-slate-600">Catatan</label>
-          <input
-            className="w-full border rounded px-3 py-2"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
-        <button className="bg-emerald-600 text-white px-4 py-2 rounded" type="submit">
-          Tambah
-        </button>
-      </form>
+            <Plus size={16} weight="bold" /> Catat
+          </button>
+        }
+      />
 
-      <div className="space-y-2">
-        {transactions.map((t) => (
-          <div key={t.id} className="bg-white p-4 rounded shadow flex justify-between items-center">
-            <div>
-              <p className="font-semibold">{t.categoryName}</p>
-              <p className="text-sm text-slate-600">
-                {t.walletName} · {t.note || '-'}
-              </p>
-              <p className="text-xs text-slate-500">{new Date(t.date).toLocaleDateString('id-ID')}</p>
+      {transactionsQ.isError && (
+        <ErrorBanner message="Gagal memuat transaksi." onRetry={() => transactionsQ.refetch()} />
+      )}
+
+      {transactionsQ.isLoading ? (
+        <SpotlightCard className="p-0">
+          <TableSkeleton />
+        </SpotlightCard>
+      ) : all.length === 0 ? (
+        <EmptyState
+          title="Belum ada transaksi"
+          description="Catat pengeluaran atau pemasukan pertamamu."
+          action={
+            <button
+              onClick={() => setOpen(true)}
+              className="flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-ink-950 transition-colors hover:bg-brand-bright"
+            >
+              <Plus size={16} weight="bold" /> Catat pertama
+            </button>
+          }
+        />
+      ) : (
+        <SpotlightCard className="p-0">
+          <div className="flex flex-wrap items-center gap-3 border-b border-line p-4">
+            <div className="relative min-w-52 flex-1">
+              <MagnifyingGlass
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted"
+              />
+              <input
+                className="w-full rounded-xl border border-line bg-white/5 py-2 pl-9 pr-3 text-sm text-fg-primary placeholder:text-fg-muted focus:border-brand focus:outline-none"
+                placeholder="Cari kategori, dompet, catatan…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
-            <div className="flex items-center gap-3">
-              <span className={t.type === 0 ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'}>
-                {t.type === 0 ? '+' : '-'}
-                {formatRupiah(t.amount)}
-              </span>
-              <button className="px-3 py-1 rounded border text-red-600" onClick={() => remove.mutate(t.id)}>
-                Hapus
-              </button>
+            <div className="flex items-center gap-2">
+              <Funnel size={16} className="text-fg-muted" />
+              <div className="w-40">
+                <Select
+                  ariaLabel="Filter tipe"
+                  value={typeFilter}
+                  onChange={(v) => setTypeFilter(v as TypeFilter)}
+                  options={[
+                    { value: '', label: 'Semua tipe' },
+                    { value: '0', label: 'Pemasukan' },
+                    { value: '1', label: 'Pengeluaran' },
+                  ]}
+                />
+              </div>
             </div>
           </div>
-        ))}
-      </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-fg-muted">
+                  <th className="px-4 py-3 font-medium">Kategori</th>
+                  <th className="hidden px-4 py-3 font-medium md:table-cell">Dompet</th>
+                  <th className="hidden px-4 py-3 font-medium lg:table-cell">Catatan</th>
+                  <th className="hidden px-4 py-3 font-medium sm:table-cell">Tanggal</th>
+                  <th className="px-4 py-3 text-right font-medium">Jumlah</th>
+                  <th className="px-4 py-3 text-right font-medium">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((t) => (
+                  <tr
+                    key={t.id}
+                    className="border-b border-line/60 transition-colors last:border-b-0 hover:bg-white/[0.03]"
+                  >
+                    <td className="px-4 py-3 font-medium text-fg-primary">{t.categoryName}</td>
+                    <td className="hidden px-4 py-3 text-fg-secondary md:table-cell">{t.walletName}</td>
+                    <td className="hidden px-4 py-3 text-fg-secondary lg:table-cell">
+                      {t.note || <span className="text-fg-muted">—</span>}
+                    </td>
+                    <td className="hidden px-4 py-3 text-fg-secondary sm:table-cell">
+                      {new Date(t.date).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </td>
+                    <td
+                      className={`whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums ${
+                        t.type === 0 ? 'text-brand-bright' : 'text-danger'
+                      }`}
+                    >
+                      {t.type === 0 ? '+' : '-'}
+                      {formatRupiah(t.amount)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <ConfirmButton onConfirm={() => remove.mutate(t.id)} busy={remove.isPending} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && (
+              <p className="px-4 py-10 text-center text-sm text-fg-secondary">
+                Tidak ada transaksi yang cocok dengan filter.
+              </p>
+            )}
+          </div>
+        </SpotlightCard>
+      )}
+
+      <SlideOver open={open} title="Catat Transaksi" onClose={() => setOpen(false)}>
+        <form onSubmit={onSubmit} className="space-y-4">
+          {error && <ErrorBanner message={error} />}
+          <div>
+            <label className="mb-1 block text-sm text-fg-secondary">Dompet</label>
+            <Select
+              ariaLabel="Dompet"
+              value={walletId}
+              onChange={setWalletId}
+              placeholder="Pilih dompet"
+              options={wallets.map((w) => ({ value: String(w.id), label: w.name }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-fg-secondary">Kategori</label>
+            <Select
+              ariaLabel="Kategori"
+              value={categoryId}
+              onChange={setCategoryId}
+              placeholder="Pilih kategori"
+              options={categories.map((c) => ({
+                value: String(c.id),
+                label: `${c.name} (${c.type === 0 ? 'Masuk' : 'Keluar'})`,
+              }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-fg-secondary">Jumlah</label>
+            <RupiahInput
+              className={inputClass}
+              value={amount}
+              onChange={setAmount}
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-fg-secondary">Catatan</label>
+            <input
+              className={inputClass}
+              value={note}
+              placeholder="Opsional"
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+          <button
+            disabled={create.isPending}
+            className="w-full rounded-xl bg-brand py-2.5 font-semibold text-ink-950 transition-colors hover:bg-brand-bright disabled:opacity-60"
+            type="submit"
+          >
+            {create.isPending ? 'Menyimpan…' : 'Simpan'}
+          </button>
+        </form>
+      </SlideOver>
     </div>
   )
 }
