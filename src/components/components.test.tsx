@@ -113,4 +113,30 @@ describe('DateRangePicker', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Bersihkan filter tanggal' }))
     expect(onClear).toHaveBeenCalledTimes(1)
   })
+
+  it('calls onChange with the selected range', () => {
+    const onChange = vi.fn()
+    render(
+      <DateRangePicker from={undefined} to={undefined} onChange={onChange} onClear={() => {}} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Dari — Sampai/ }))
+    const cells = screen.getAllByRole('gridcell')
+    const dayButtons = cells.map((c) => c.querySelector('button')).filter(Boolean)
+    fireEvent.click(dayButtons[0]!)
+    fireEvent.click(dayButtons[1]!)
+    expect(onChange).toHaveBeenCalled()
+    const last = onChange.mock.calls[onChange.mock.calls.length - 1]
+    expect(last[0]).toBeInstanceOf(Date)
+    expect(last[1]).toBeInstanceOf(Date)
+  })
+
+  it('closes the calendar on Escape', () => {
+    render(
+      <DateRangePicker from={undefined} to={undefined} onChange={() => {}} onClear={() => {}} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Dari — Sampai/ }))
+    expect(screen.getByRole('grid')).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('grid')).not.toBeInTheDocument()
+  })
 })

@@ -45,27 +45,31 @@ export default function DateRangePicker({
   const active = Boolean(from || to)
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="date-range-picker relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className={`flex items-center gap-2 rounded-xl border bg-white/5 px-3 py-2 text-left text-sm transition-colors hover:border-line-strong focus:border-brand focus:outline-none ${
           open ? 'border-brand' : 'border-line'
         } ${active ? 'pr-8' : ''}`}
       >
         <CalendarBlank size={16} className="shrink-0 text-fg-muted" />
         <span className={active ? 'text-fg-primary' : 'text-fg-muted'}>{label}</span>
-        <CaretDown
-          size={14}
-          className={`ml-auto text-fg-muted transition-transform ${open ? 'rotate-180' : ''}`}
-        />
+        {!active && (
+          <CaretDown
+            size={14}
+            className={`ml-auto text-fg-muted transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        )}
       </button>
       {active && (
         <button
           type="button"
           aria-label="Bersihkan filter tanggal"
           onClick={onClear}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-fg-muted transition-colors hover:bg-white/10 hover:text-fg-primary"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-fg-muted transition-colors hover:bg-white/10 hover:text-fg-primary"
         >
           <X size={14} />
         </button>
