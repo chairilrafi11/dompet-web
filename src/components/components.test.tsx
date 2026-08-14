@@ -6,6 +6,7 @@ import ConfirmButton from './ConfirmButton'
 import SlideOver from './SlideOver'
 import StatCard from './StatCard'
 import Select from './Select'
+import DateRangePicker from './DateRangePicker'
 
 describe('EmptyState', () => {
   it('renders title and action', () => {
@@ -85,5 +86,31 @@ describe('Select', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pilih' }))
     fireEvent.click(screen.getByRole('option', { name: 'B' }))
     expect(onChange).toHaveBeenCalledWith('b')
+  })
+})
+
+describe('DateRangePicker', () => {
+  it('renders placeholder when empty', () => {
+    render(
+      <DateRangePicker from={undefined} to={undefined} onChange={() => {}} onClear={() => {}} />,
+    )
+    expect(screen.getByText('Dari — Sampai')).toBeInTheDocument()
+  })
+
+  it('opens the calendar on click', () => {
+    render(
+      <DateRangePicker from={undefined} to={undefined} onChange={() => {}} onClear={() => {}} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Dari — Sampai/ }))
+    expect(screen.getByRole('grid')).toBeInTheDocument()
+  })
+
+  it('shows clear button and fires onClear when a range is set', () => {
+    const onClear = vi.fn()
+    const from = new Date(2026, 7, 14)
+    const to = new Date(2026, 7, 20)
+    render(<DateRangePicker from={from} to={to} onChange={() => {}} onClear={onClear} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Bersihkan filter tanggal' }))
+    expect(onClear).toHaveBeenCalledTimes(1)
   })
 })
