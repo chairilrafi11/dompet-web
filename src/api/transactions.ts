@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { CategoryType, Transaction } from './types'
+import type { CategoryType, PagedResult, Transaction } from './types'
 
 export interface TransactionFilters {
   dateFrom?: string
@@ -9,8 +9,14 @@ export interface TransactionFilters {
   type?: CategoryType
 }
 
-export async function getTransactions(filters: TransactionFilters = {}) {
-  const { data } = await api.get<Transaction[]>('/transactions', { params: filters })
+export async function getTransactions(
+  filters: TransactionFilters = {},
+  page = 1,
+  pageSize = 20,
+) {
+  const { data } = await api.get<PagedResult<Transaction>>('/transactions', {
+    params: { ...filters, page, pageSize },
+  })
   return data
 }
 

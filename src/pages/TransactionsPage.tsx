@@ -10,6 +10,7 @@ import ConfirmButton from '../components/ConfirmButton'
 import EmptyState from '../components/EmptyState'
 import ErrorBanner from '../components/ErrorBanner'
 import PageHeader from '../components/PageHeader'
+import Pagination from '../components/Pagination'
 import RupiahInput from '../components/RupiahInput'
 import Select from '../components/Select'
 import DateRangePicker from '../components/DateRangePicker'
@@ -32,18 +33,23 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState<Date>()
   const [dateTo, setDateTo] = useState<Date>()
+  const [page, setPage] = useState(1)
   const transactionsQ = useQuery({
-    queryKey: ['transactions', typeFilter, dateFrom, dateTo],
+    queryKey: ['transactions', typeFilter, dateFrom, dateTo, page],
     queryFn: () =>
-      getTransactions({
-        ...(typeFilter === '' ? {} : { type: Number(typeFilter) as CategoryType }),
-        ...(dateFrom
-          ? { dateFrom: new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate()).toISOString() }
-          : {}),
-        ...(dateTo
-          ? { dateTo: new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).toISOString() }
-          : {}),
-      }),
+      getTransactions(
+        {
+          ...(typeFilter === '' ? {} : { type: Number(typeFilter) as CategoryType }),
+          ...(dateFrom
+            ? { dateFrom: new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate()).toISOString() }
+            : {}),
+          ...(dateTo
+            ? { dateTo: new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).toISOString() }
+            : {}),
+        },
+        page,
+        20,
+      ),
   })
 
   const [open, setOpen] = useState(false)
@@ -94,7 +100,9 @@ export default function TransactionsPage() {
     create.mutate()
   }
 
-  const all = transactionsQ.data ?? []
+  const all = transactionsQ.data?.items ?? []
+  const totalCount = transactionsQ.data?.totalCount ?? 0
+  const totalPages = transactionsQ.data?.totalPages ?? 0
   const q = search.trim().toLowerCase()
   const filtered = q
     ? all.filter((t) =>
@@ -106,7 +114,7 @@ export default function TransactionsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Transaksi"
-        subtitle={all.length > 0 ? `${all.length} catatan` : 'Catat dan kelola transaksi'}
+        subtitle={totalCount > 0 ? `${totalCount} catatan` : 'Catat dan kelola transaksi'}
         action={
           <button
             onClick={() => setOpen(true)}
@@ -125,7 +133,7 @@ export default function TransactionsPage() {
         <SpotlightCard className="p-0">
           <TableSkeleton />
         </SpotlightCard>
-      ) : all.length === 0 ? (
+      ) : totalCount === 0 ? (
         <EmptyState
           title="Belum ada transaksi"
           description="Catat pengeluaran atau pemasukan pertamamu."
@@ -159,7 +167,10 @@ export default function TransactionsPage() {
                 <Select
                   ariaLabel="Filter tipe"
                   value={typeFilter}
-                  onChange={(v) => setTypeFilter(v as TypeFilter)}
+                  onChange={(v) => {
+                    setTypeFilter(v as TypeFilter)
+                    setPage(1)
+                  }}
                   options={[
                     { value: '', label: 'Semua tipe' },
                     { value: '0', label: 'Pemasukan' },
@@ -167,18 +178,20 @@ export default function TransactionsPage() {
                   ]}
                 />
               </div>
-              <DateRangePicker
-                from={dateFrom}
-                to={dateTo}
-                onChange={(f, t) => {
-                  setDateFrom(f)
-                  setDateTo(t)
-                }}
-                onClear={() => {
-                  setDateFrom(undefined)
-                  setDateTo(undefined)
-                }}
-              />
+  <DateRangePicker
+    from={dateFrom}
+    to={dateTo}
+    onChange={(f, t) => {
+      setDateFrom(f)
+      setDateTo(t)
+      setPage(1)
+    }}
+    onClear={() => {
+      setDateFrom(undefined)
+      setDateTo(undefined)
+      setPage(1)
+    }}
+  />
             </div>
           </div>
 
@@ -233,6 +246,14 @@ export default function TransactionsPage() {
               </p>
             )}
           </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onChange={(p) => {
+              setPage(p)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+          />
         </SpotlightCard>
       )}
 

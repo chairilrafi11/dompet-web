@@ -6,6 +6,7 @@ import ConfirmButton from './ConfirmButton'
 import SlideOver from './SlideOver'
 import StatCard from './StatCard'
 import Select from './Select'
+import Pagination from './Pagination'
 import DateRangePicker from './DateRangePicker'
 
 describe('EmptyState', () => {
@@ -138,5 +139,21 @@ describe('DateRangePicker', () => {
     expect(screen.getByRole('grid')).toBeInTheDocument()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('grid')).not.toBeInTheDocument()
+  })
+})
+
+describe('Pagination', () => {
+  it('hides when there is a single page', () => {
+    const { container } = render(<Pagination page={1} totalPages={1} onChange={() => {}} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders page buttons and fires onChange', () => {
+    const onChange = vi.fn()
+    render(<Pagination page={2} totalPages={5} onChange={onChange} />)
+    fireEvent.click(screen.getByRole('button', { name: '3' }))
+    expect(onChange).toHaveBeenCalledWith(3)
+    fireEvent.click(screen.getByRole('button', { name: 'Sebelumnya' }))
+    expect(onChange).toHaveBeenCalledWith(1)
   })
 })

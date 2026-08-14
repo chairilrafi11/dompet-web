@@ -80,7 +80,7 @@ export default function DashboardPage() {
     null,
   )
   const topPct = top && totalExpense > 0 ? Math.round((top.amount / totalExpense) * 100) : 0
-  const recent = (transactionsQ.data ?? [])
+  const recent = (transactionsQ.data?.items ?? [])
     .slice()
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5)
