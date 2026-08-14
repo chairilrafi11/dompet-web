@@ -19,8 +19,13 @@ export default function DateRangePicker({
 }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
+  const [draft, setDraft] = useState<DateRange>({ from, to })
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setDraft({ from, to })
+  }, [from, to])
 
   useEffect(() => {
     if (!open) return
@@ -60,7 +65,6 @@ export default function DateRangePicker({
       ? `${format(from, 'dd MMM yyyy', { locale: id })} — …`
       : 'Dari — Sampai'
 
-  const selected: DateRange = { from, to }
   const active = Boolean(from || to)
 
   return (
@@ -104,13 +108,19 @@ export default function DateRangePicker({
             <DayPicker
               mode="range"
               locale={id}
-              min={2}
-              selected={selected}
+              selected={draft}
               onSelect={(r) => {
-                if (r?.from && r?.to) {
-                  onChange(r.from, r.to)
-                  setOpen(false)
+                if (!r?.from) {
+                  setDraft({ from: undefined, to: undefined })
+                  return
                 }
+                if (!draft.from) {
+                  setDraft({ from: r.from, to: undefined })
+                  return
+                }
+                onChange(r.from, r.to)
+                setDraft({ from: undefined, to: undefined })
+                setOpen(false)
               }}
               numberOfMonths={1}
             />
