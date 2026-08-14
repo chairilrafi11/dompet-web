@@ -12,6 +12,7 @@ import ErrorBanner from '../components/ErrorBanner'
 import PageHeader from '../components/PageHeader'
 import RupiahInput from '../components/RupiahInput'
 import Select from '../components/Select'
+import DateRangePicker from '../components/DateRangePicker'
 import SlideOver from '../components/SlideOver'
 import SpotlightCard from '../components/SpotlightCard'
 import TableSkeleton from '../components/TableSkeleton'
@@ -29,10 +30,20 @@ export default function TransactionsPage() {
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: () => getCategories() })
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('')
   const [search, setSearch] = useState('')
+  const [dateFrom, setDateFrom] = useState<Date>()
+  const [dateTo, setDateTo] = useState<Date>()
   const transactionsQ = useQuery({
-    queryKey: ['transactions', typeFilter],
+    queryKey: ['transactions', typeFilter, dateFrom, dateTo],
     queryFn: () =>
-      getTransactions(typeFilter === '' ? {} : { type: Number(typeFilter) as CategoryType }),
+      getTransactions({
+        ...(typeFilter === '' ? {} : { type: Number(typeFilter) as CategoryType }),
+        ...(dateFrom
+          ? { dateFrom: new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate()).toISOString() }
+          : {}),
+        ...(dateTo
+          ? { dateTo: new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).toISOString() }
+          : {}),
+      }),
   })
 
   const [open, setOpen] = useState(false)
@@ -156,6 +167,18 @@ export default function TransactionsPage() {
                   ]}
                 />
               </div>
+              <DateRangePicker
+                from={dateFrom}
+                to={dateTo}
+                onChange={(f, t) => {
+                  setDateFrom(f)
+                  setDateTo(t)
+                }}
+                onClear={() => {
+                  setDateFrom(undefined)
+                  setDateTo(undefined)
+                }}
+              />
             </div>
           </div>
 
