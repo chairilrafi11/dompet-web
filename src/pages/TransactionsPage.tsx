@@ -13,6 +13,7 @@ import PageHeader from '../components/PageHeader'
 import Pagination from '../components/Pagination'
 import RupiahInput from '../components/RupiahInput'
 import Select from '../components/Select'
+import DatePicker from '../components/DatePicker'
 import DateRangePicker from '../components/DateRangePicker'
 import SlideOver from '../components/SlideOver'
 import SpotlightCard from '../components/SpotlightCard'
@@ -59,6 +60,7 @@ export default function TransactionsPage() {
   const [categoryId, setCategoryId] = useState('')
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
+  const [date, setDate] = useState<Date>(() => new Date())
   const [error, setError] = useState('')
 
   const invalidate = () => {
@@ -75,12 +77,13 @@ export default function TransactionsPage() {
         amount: Number(amount),
         type: category.type,
         note: note || null,
-        date: new Date().toISOString(),
+        date: new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString(),
       })
     },
     onSuccess: () => {
       setAmount('')
       setNote('')
+      setDate(new Date())
       setOpen(false)
       toast('Transaksi dicatat')
       invalidate()
@@ -297,6 +300,10 @@ export default function TransactionsPage() {
               onChange={setAmount}
               placeholder="0"
             />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-fg-secondary">Tanggal</label>
+            <DatePicker value={date} onChange={(d) => d && setDate(d)} />
           </div>
           <div>
             <label className="mb-1 block text-sm text-fg-secondary">Catatan</label>
