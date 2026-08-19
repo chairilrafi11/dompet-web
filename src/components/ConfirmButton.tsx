@@ -4,9 +4,11 @@ import { Trash } from '@phosphor-icons/react'
 export default function ConfirmButton({
   onConfirm,
   busy = false,
+  className = '',
 }: {
   onConfirm: () => void
   busy?: boolean
+  className?: string
 }) {
   const [confirming, setConfirming] = useState(false)
 
@@ -15,7 +17,7 @@ export default function ConfirmButton({
       <button
         aria-label="Hapus"
         onClick={() => setConfirming(true)}
-        className="rounded-lg border border-line p-2 text-fg-secondary transition-colors hover:border-danger/40 hover:text-danger"
+        className={`rounded-lg border border-line p-2 text-fg-secondary transition-colors hover:border-danger/40 hover:text-danger ${className}`}
       >
         <Trash size={16} />
       </button>

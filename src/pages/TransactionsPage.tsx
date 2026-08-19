@@ -33,16 +33,18 @@ export default function TransactionsPage() {
   const { data: wallets = [] } = useQuery({ queryKey: ['wallets'], queryFn: getWallets })
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: () => getCategories() })
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('')
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState<Date>()
   const [dateTo, setDateTo] = useState<Date>()
   const [page, setPage] = useState(1)
   const transactionsQ = useQuery({
-    queryKey: ['transactions', typeFilter, dateFrom, dateTo, page],
+    queryKey: ['transactions', typeFilter, categoryFilter, dateFrom, dateTo, page],
     queryFn: () =>
       getTransactions(
         {
           ...(typeFilter === '' ? {} : { type: Number(typeFilter) as CategoryType }),
+          ...(categoryFilter === '' ? {} : { categoryId: Number(categoryFilter) }),
           ...(dateFrom
             ? { dateFrom: new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate()).toISOString() }
             : {}),
@@ -183,6 +185,23 @@ export default function TransactionsPage() {
                   ]}
                 />
               </div>
+              <div className="w-44">
+                <Select
+                  ariaLabel="Filter kategori"
+                  value={categoryFilter}
+                  onChange={(v) => {
+                    setCategoryFilter(v)
+                    setPage(1)
+                  }}
+                  options={[
+                    { value: '', label: 'Semua kategori' },
+                    ...categories.map((c) => ({
+                      value: String(c.id),
+                      label: `${c.name} (${c.type === 0 ? 'Masuk' : 'Keluar'})`,
+                    })),
+                  ]}
+                />
+              </div>
   <DateRangePicker
     from={dateFrom}
     to={dateTo}
@@ -200,7 +219,7 @@ export default function TransactionsPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-fg-muted">
@@ -249,12 +268,56 @@ export default function TransactionsPage() {
                 ))}
               </tbody>
             </table>
-            {filtered.length === 0 && (
-              <p className="px-4 py-10 text-center text-sm text-fg-secondary">
-                Tidak ada transaksi yang cocok dengan filter.
-              </p>
-            )}
           </div>
+
+          <ul className="divide-y divide-line/60 md:hidden">
+            {filtered.map((t, i) => (
+              <li key={t.id} className="flex items-start gap-3 p-4">
+                <div
+                  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                    t.type === 0 ? 'bg-brand-dim text-brand-bright' : 'bg-danger/10 text-danger'
+                  }`}
+                >
+                  {t.type === 0 ? '+' : '-'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate font-medium text-fg-primary">{t.categoryName}</p>
+                    <p
+                      className={`whitespace-nowrap font-semibold tabular-nums ${
+                        t.type === 0 ? 'text-brand-bright' : 'text-danger'
+                      }`}
+                    >
+                      {t.type === 0 ? '+' : '-'}
+                      {formatRupiah(t.amount)}
+                    </p>
+                  </div>
+                  <p className="truncate text-sm text-fg-secondary">
+                    {t.note || t.walletName}
+                    {t.note ? ` · ${t.walletName}` : ''}
+                  </p>
+                  <p className="text-xs text-fg-muted">
+                    #{i + 1} ·{' '}
+                    {new Date(t.date).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <ConfirmButton
+                  className="shrink-0"
+                  onConfirm={() => remove.mutate(t.id)}
+                  busy={remove.isPending}
+                />
+              </li>
+            ))}
+          </ul>
+          {filtered.length === 0 && (
+            <p className="px-4 py-10 text-center text-sm text-fg-secondary">
+              Tidak ada transaksi yang cocok dengan filter.
+            </p>
+          )}
           <Pagination
             page={page}
             totalPages={totalPages}
