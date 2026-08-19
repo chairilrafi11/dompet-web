@@ -34,17 +34,19 @@ export default function TransactionsPage() {
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: () => getCategories() })
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [walletFilter, setWalletFilter] = useState('')
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState<Date>()
   const [dateTo, setDateTo] = useState<Date>()
   const [page, setPage] = useState(1)
   const transactionsQ = useQuery({
-    queryKey: ['transactions', typeFilter, categoryFilter, dateFrom, dateTo, page],
+    queryKey: ['transactions', typeFilter, categoryFilter, walletFilter, dateFrom, dateTo, page],
     queryFn: () =>
       getTransactions(
         {
           ...(typeFilter === '' ? {} : { type: Number(typeFilter) as CategoryType }),
           ...(categoryFilter === '' ? {} : { categoryId: Number(categoryFilter) }),
+          ...(walletFilter === '' ? {} : { walletId: Number(walletFilter) }),
           ...(dateFrom
             ? { dateFrom: new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate()).toISOString() }
             : {}),
@@ -199,6 +201,20 @@ export default function TransactionsPage() {
                       value: String(c.id),
                       label: `${c.name} (${c.type === 0 ? 'Masuk' : 'Keluar'})`,
                     })),
+                  ]}
+                />
+              </div>
+              <div className="w-40">
+                <Select
+                  ariaLabel="Filter dompet"
+                  value={walletFilter}
+                  onChange={(v) => {
+                    setWalletFilter(v)
+                    setPage(1)
+                  }}
+                  options={[
+                    { value: '', label: 'Semua dompet' },
+                    ...wallets.map((w) => ({ value: String(w.id), label: w.name })),
                   ]}
                 />
               </div>
