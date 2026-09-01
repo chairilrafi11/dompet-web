@@ -12,11 +12,13 @@ export default function StatCard({
   value,
   icon,
   tone = 'default',
+  footer,
 }: {
   label: string
   value: string
   icon?: ReactNode
   tone?: keyof typeof tones
+  footer?: ReactNode
 }) {
   return (
     <SpotlightCard className="p-5">
@@ -25,6 +27,7 @@ export default function StatCard({
         {icon && <span className="text-fg-muted">{icon}</span>}
       </div>
       <p className={`mt-2 text-2xl font-semibold tabular-nums ${tones[tone]}`}>{value}</p>
+      {footer && <div className="mt-2">{footer}</div>}
     </SpotlightCard>
   )
 }

@@ -36,17 +36,30 @@ export interface AnalyticsSummary {
   income: number
   expense: number
   net: number
+  prevIncome: number
+  prevExpense: number
+  prevNet: number
 }
 
 export interface CategoryBreakdown {
+  categoryId: number
   category: string
   amount: number
+  prevAmount: number
 }
 
-export interface MonthlyTrend {
-  month: string
+export interface TrendPoint {
+  date: string
   income: number
   expense: number
+}
+
+export interface WalletRecap {
+  walletId: number
+  walletName: string
+  income: number
+  expense: number
+  net: number
 }
 
 export interface PagedResult<T> {

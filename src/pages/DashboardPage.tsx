@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { ArrowDownRight, ArrowUpRight, Plus, Receipt, TrendUp, Wallet } from '@phosphor-icons/react'
-import { getByCategory, getMonthlyTrend, getSummary } from '../api/analytics'
+import { getByCategory, getSummary, getTrend } from '../api/analytics'
 import { getWallets } from '../api/wallets'
 import { getTransactions } from '../api/transactions'
 import { formatRupiah } from '../lib/format'
@@ -40,10 +40,10 @@ function DashboardSkeleton() {
 }
 
 export default function DashboardPage() {
-  const summaryQ = useQuery({ queryKey: ['summary'], queryFn: getSummary })
-  const breakdownQ = useQuery({ queryKey: ['by-category'], queryFn: getByCategory })
+  const summaryQ = useQuery({ queryKey: ['summary'], queryFn: () => getSummary() })
+  const breakdownQ = useQuery({ queryKey: ['by-category'], queryFn: () => getByCategory() })
   const walletsQ = useQuery({ queryKey: ['wallets'], queryFn: getWallets })
-  const trendQ = useQuery({ queryKey: ['monthly-trend'], queryFn: () => getMonthlyTrend(6) })
+  const trendQ = useQuery({ queryKey: ['monthly-trend'], queryFn: () => getTrend() })
   const transactionsQ = useQuery({ queryKey: ['transactions'], queryFn: () => getTransactions() })
 
   const loading = summaryQ.isLoading || walletsQ.isLoading || breakdownQ.isLoading
