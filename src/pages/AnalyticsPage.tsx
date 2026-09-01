@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -28,6 +28,7 @@ import { subMonths, subDays, startOfMonth, endOfMonth, format, parseISO } from '
 import { id } from 'date-fns/locale'
 import { getByCategory, getSummary, getTrend, getWalletRecap } from '../api/analytics'
 import { getTransactions } from '../api/transactions'
+import { getWallets } from '../api/wallets'
 import { formatRupiah } from '../lib/format'
 import DateRangePicker from '../components/DateRangePicker'
 import EmptyState from '../components/EmptyState'
@@ -38,7 +39,7 @@ import SlideOver from '../components/SlideOver'
 import SpotlightCard from '../components/SpotlightCard'
 import StatCard from '../components/StatCard'
 
-const PIE_COLORS = ['#10b981', '#34d399', '#6ee7b7', '#2dd4bf', '#14b8a6', '#0d9488', '#5eead4', '#99f6e4']
+const PIE_COLORS = ['#f87171', '#fb7185', '#fca5a5', '#f43f5e', '#e11d48', '#fda4af', '#ef4444', '#fbbf24']
 
 const tooltipStyle = {
   background: '#111514',
@@ -130,6 +131,8 @@ export default function AnalyticsPage() {
   const [customTo, setCustomTo] = useState<Date | undefined>()
   const [hidden, setHidden] = useState<Set<number>>(new Set())
   const [drill, setDrill] = useState<{ categoryId: number; name: string } | null>(null)
+  const [sortBy, setSortBy] = useState<'name' | 'amount' | 'date'>('date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const range = useMemo(
     () => resolveRange(preset, customFrom, customTo),
@@ -142,6 +145,7 @@ export default function AnalyticsPage() {
   const breakdownQ = useQuery({ queryKey: ['by-category', params], queryFn: () => getByCategory(params) })
   const trendQ = useQuery({ queryKey: ['trend', params], queryFn: () => getTrend(params) })
   const recapQ = useQuery({ queryKey: ['wallet-recap', params], queryFn: () => getWalletRecap(params) })
+  const walletsQ = useQuery({ queryKey: ['wallets'], queryFn: getWallets })
   const drillQ = useQuery({
     queryKey: ['drill', drill, params],
     queryFn: () => getTransactions({ categoryId: drill!.categoryId, dateFrom: range.from, dateTo: range.to }, 1, 50),
@@ -153,7 +157,27 @@ export default function AnalyticsPage() {
   const visible = breakdown.filter((b) => !b.hidden)
   const trend = trendQ.data ?? []
   const recap = recapQ.data ?? []
-  const drillTxs = drillQ.data?.items ?? []
+  const wallets = walletsQ.data ?? []
+  const drillTxs = useMemo(() => {
+    const items = [...(drillQ.data?.items ?? [])]
+    const dir = sortDir === 'asc' ? 1 : -1
+    items.sort((a, b) => {
+      switch (sortBy) {
+        case 'name': {
+          const an = a.note ?? a.categoryName
+          const bn = b.note ?? b.categoryName
+          return an.localeCompare(bn) * dir
+        }
+        case 'amount':
+          return (a.amount - b.amount) * dir
+        default:
+          return a.date.localeCompare(b.date) * dir
+      }
+    })
+    return items
+  }, [drillQ.data, sortBy, sortDir])
+
+  const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0)
 
   const toggleCategory = (categoryId: number) => {
     setHidden((prev) => {
@@ -164,14 +188,15 @@ export default function AnalyticsPage() {
     })
   }
 
-  const allLoading = summaryQ.isLoading || trendQ.isLoading || breakdownQ.isLoading || recapQ.isLoading
-  const anyError = summaryQ.isError || trendQ.isError || breakdownQ.isError || recapQ.isError
+  const allLoading = summaryQ.isLoading || trendQ.isLoading || breakdownQ.isLoading || recapQ.isLoading || walletsQ.isLoading
+  const anyError = summaryQ.isError || trendQ.isError || breakdownQ.isError || recapQ.isError || walletsQ.isError
 
   const retryAll = () => {
     summaryQ.refetch()
     trendQ.refetch()
     breakdownQ.refetch()
     recapQ.refetch()
+    walletsQ.refetch()
   }
 
   return (
@@ -220,8 +245,8 @@ export default function AnalyticsPage() {
 
       {allLoading ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {[0, 1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-28 w-full" />
             ))}
           </div>
@@ -233,7 +258,12 @@ export default function AnalyticsPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <StatCard
+              label="Saldo Total"
+              value={formatRupiah(totalBalance)}
+              icon={<WalletIcon size={18} />}
+            />
             <StatCard
               label="Pemasukan"
               value={formatRupiah(summary?.income ?? 0)}
@@ -286,7 +316,17 @@ export default function AnalyticsPage() {
               <EmptyState title="Belum ada data tren" description="Tren muncul setelah ada transaksi." />
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={trend}>
+                <AreaChart data={trend}>
+                  <defs>
+                    <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f87171" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#f87171" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
                   <XAxis
                     dataKey="date"
@@ -310,23 +350,23 @@ export default function AnalyticsPage() {
                     contentStyle={tooltipStyle}
                   />
                   <Legend />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="income"
                     name="Pemasukan"
                     stroke="#10b981"
                     strokeWidth={2}
-                    dot={false}
+                    fill="url(#incomeGrad)"
                   />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="expense"
                     name="Pengeluaran"
                     stroke="#f87171"
                     strokeWidth={2}
-                    dot={false}
+                    fill="url(#expenseGrad)"
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             )}
           </SpotlightCard>
@@ -488,7 +528,7 @@ export default function AnalyticsPage() {
                     />
                     <Legend />
                     <Bar dataKey="prevAmount" name="Sebelumnya" fill="#6b7672" radius={[4, 4, 0, 0]} maxBarSize={24} />
-                    <Bar dataKey="amount" name="Sekarang" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={24} />
+                    <Bar dataKey="amount" name="Sekarang" fill="#f87171" radius={[4, 4, 0, 0]} maxBarSize={24} />
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="overflow-x-auto">
@@ -503,7 +543,11 @@ export default function AnalyticsPage() {
                     </thead>
                     <tbody className="divide-y divide-line">
                       {visible.map((b) => (
-                        <tr key={b.categoryId} className="text-fg-primary">
+                        <tr
+                          key={b.categoryId}
+                          onClick={() => setDrill({ categoryId: b.categoryId, name: b.category })}
+                          className="cursor-pointer text-fg-primary transition-colors hover:bg-white/5"
+                        >
                           <td className="py-2 pr-3 font-medium">{b.category}</td>
                           <td className="py-2 pr-3 text-right tabular-nums">{formatRupiah(b.amount)}</td>
                           <td className="py-2 pr-3 text-right tabular-nums text-fg-muted">
@@ -528,6 +572,35 @@ export default function AnalyticsPage() {
         title={drill ? `Transaksi ${drill.name}` : ''}
         onClose={() => setDrill(null)}
       >
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="flex gap-1 rounded-full border border-line bg-surface p-1">
+            {(['date', 'name', 'amount'] as const).map((key) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setSortBy(key)
+                  setSortDir(key === 'name' ? 'asc' : 'desc')
+                }}
+                className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                  sortBy === key
+                    ? 'bg-brand-dim font-medium text-brand-bright'
+                    : 'text-fg-secondary hover:text-fg-primary'
+                }`}
+              >
+                {key === 'date' ? 'Tanggal' : key === 'name' ? 'Nama' : 'Jumlah'}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+            aria-label={`Urutkan ${sortDir === 'asc' ? 'naik' : 'turun'}`}
+            className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-fg-secondary transition-colors hover:text-fg-primary"
+          >
+            {sortDir === 'asc' ? '▲ Naik' : '▼ Turun'}
+          </button>
+          <span className="ml-auto text-xs text-fg-muted">{drillTxs.length} transaksi</span>
+        </div>
         {drillQ.isLoading ? (
           <Skeleton className="h-24 w-full" />
         ) : drillTxs.length === 0 ? (
